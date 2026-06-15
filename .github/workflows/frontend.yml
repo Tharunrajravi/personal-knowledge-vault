@@ -1,0 +1,106 @@
+name: Deploy Frontend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend.yml'
+  workflow_dispatch:
+
+env:
+  AWS_REGION:      ap-south-1
+  # These are set as GitHub secrets
+  # S3_BUCKET:     pkv-frontend-919468641180
+  # CF_DIST_ID:    E2IUKC500WC3SF
+
+jobs:
+  deploy:
+    name: Build → S3 → CloudFront
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout ────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── 2. Setup Node ──────────────────────────────────────────────────────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      # ── 3. Install dependencies ────────────────────────────────────────────
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci  # ci = clean install, faster and more reliable than npm install
+
+      # ── 4. Build React app ─────────────────────────────────────────────────
+      # VITE_API_URL is empty so all /api/* calls are relative
+      # CloudFront routes /api/* to ALB automatically
+      - name: Build
+        run: |
+          cd frontend
+          VITE_API_URL="" npm run build
+          echo "✓ Build complete"
+          ls -lh dist/
+
+      # ── 5. Configure AWS credentials ───────────────────────────────────────
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ env.AWS_REGION }}
+
+      # ── 6. Deploy HTML files (no cache) ────────────────────────────────────
+      # index.html must never be cached — it's the entry point to your SPA
+      # Browsers should always fetch the latest version
+      - name: Upload HTML (no-cache)
+        run: |
+          aws s3 sync frontend/dist/ s3://${{ secrets.S3_BUCKET }}/ \
+            --region ${{ env.AWS_REGION }} \
+            --exclude "*" \
+            --include "*.html" \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --delete
+
+      # ── 7. Deploy assets (cache forever) ───────────────────────────────────
+      # Vite adds a content hash to JS/CSS filenames: main.a3f2c1.js
+      # If content changes → filename changes → new URL → cache miss (correct)
+      # If content unchanged → same filename → cache hit → instant load (correct)
+      - name: Upload assets (cache forever)
+        run: |
+          aws s3 sync frontend/dist/ s3://${{ secrets.S3_BUCKET }}/ \
+            --region ${{ env.AWS_REGION }} \
+            --exclude "*.html" \
+            --cache-control "public, max-age=31536000, immutable" \
+            --delete
+          echo "✓ Uploaded to S3"
+
+      # ── 8. Invalidate CloudFront cache ─────────────────────────────────────
+      # Clears the CDN cache so users get the new index.html immediately
+      # Assets don't need invalidation because filenames changed
+      - name: Invalidate CloudFront
+        run: |
+          INVALIDATION_ID=$(aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CF_DIST_ID }} \
+            --paths "/*.html" "/index.html" \
+            --query 'Invalidation.Id' \
+            --output text)
+          echo "✓ CloudFront invalidation: $INVALIDATION_ID"
+
+      # ── 9. Summary ─────────────────────────────────────────────────────────
+      - name: Deploy summary
+        run: |
+          echo "## Frontend Deploy Complete 🎨" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| S3 Bucket | \`${{ secrets.S3_BUCKET }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| CloudFront | \`${{ secrets.CF_DIST_ID }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Live URL | https://d4jjnxuu7qbc7.cloudfront.net |" >> $GITHUB_STEP_SUMMARY

@@ -1,7 +1,8 @@
 // pages/Auth.jsx — Login + Register
 import { useState } from 'react'
+import PKVLogo from '../components/PKVLogo'
 import { useNavigate } from 'react-router-dom'
-import { BookMarked, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { auth } from '../api/services'
 import { useAuthStore } from '../store/auth'
@@ -43,9 +44,8 @@ export default function Auth() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16
-                          bg-primary-600 rounded-2xl mb-4 shadow-lg">
-            <BookMarked className="w-8 h-8 text-white" />
+          <div className="flex justify-center mb-4">
+            <PKVLogo size="xl" variant="icon" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Personal Knowledge Vault</h1>
           <p className="text-gray-500 mt-1">Save, tag and search your links</p>

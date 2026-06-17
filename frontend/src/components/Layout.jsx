@@ -49,14 +49,8 @@ export default function Layout({ children }) {
   const Sidebar = ({ onNavClick }) => (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="flex items-center gap-2.5 px-3 py-4 mb-2">
-        <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
-          <BookMarked className="w-4 h-4 text-white" />
-        </div>
-        <div>
-          <p className="font-bold text-gray-900 text-sm leading-tight">Knowledge</p>
-          <p className="text-xs text-gray-500 leading-tight">Vault</p>
-        </div>
+      <div className="px-3 py-4 mb-2">
+         <PKVLogo size="sm" variant="full" />
       </div>
 
       {/* Nav */}

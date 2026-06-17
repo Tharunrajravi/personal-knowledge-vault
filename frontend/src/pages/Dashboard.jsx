@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, Tooltip, ResponsiveContainer
+  XAxis, YAxis, Tooltip, ResponsiveContainer, Legend
 } from 'recharts'
 import {
   Link2, Star, Archive, BookOpen,
@@ -116,17 +116,19 @@ export default function Dashboard() {
                   nameKey="type"
                   cx="50%"
                   cy="50%"
-                  outerRadius={70}
-                  label={({ type, percent }) =>
-                    `${type} ${(percent * 100).toFixed(0)}%`
-                  }
-                  labelLine={false}
+                  outerRadius={65}
+                  innerRadius={30}
                 >
                   {links_by_type.map((_, i) => (
                     <Cell key={i} fill={COLORS[i % COLORS.length]} />
                   ))}
-                </Pie>
-                <Tooltip formatter={(v, n) => [v, n]} />
+              </Pie>
+              <Tooltip formatter={(v, name) => [v, name]} />
+              <Legend
+                formatter={(value) => value.charAt(0).toUpperCase() + value.slice(1)}
+                iconType="circle"
+                iconSize={8}
+              />
               </PieChart>
             </ResponsiveContainer>
           </div>
